@@ -27,6 +27,5 @@ This project analyzes customer reviews and automatically generates:
 Upload Reviews → Extract Reviews → Review Analysis → Weekly Product Pulse → Fee Explainer → Review Page → Approval Gate → Gmail
 ## Files
 - Reviews.json
-- Groww_Reviews_By_Theme.xlsx
 - README.md
 has context menu
