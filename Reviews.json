@@ -1,0 +1,596 @@
+{
+  "name": "Reviews",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Groww Weekly Product Pulse",
+        "formDescription": "Upload customer reviews to generate a weekly Product Pulse and Fee Explainer",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Reviews CSV",
+              "fieldType": "file",
+              "fieldName": "reviews",
+              "acceptFileTypes": ".csv",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72bb5827-2b61-4a32-80b0-5f2597bd7b1d",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -1216,
+        -256
+      ],
+      "webhookId": "fbd75f5e-b6a4-4665-bc38-f9b55b79dffa"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "reviews",
+        "destinationKey": "text",
+        "options": {}
+      },
+      "id": "2df158e5-a577-4ea0-a49c-6e5d9eb3fec8",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -960,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read the uploaded CSV as plain text so commas inside reviews don't break parsing\nconst text = String($input.first().json.text || '');\nconst lines = text\n .replace(/^\\uFEFF/, '')\n .split(/\\r?\\n/)\n .map(l => l.trim())\n .filter(l => l.length > 0);\n// Drop the first line only if it looks like a header (e.g. \"review\")\nconst hasHeader = lines.length > 0 && /^\"?(reviews?|text|comments?|feedback)\"?$/i.test(lines[0]);\nconst reviews = (hasHeader ? lines.slice(1) : lines)\n .map(l => l.replace(/^\"(.*)\"$/, '$1').replace(/\"\"/g, '\"'))\n .join('\\n');\nreturn [{\n json: {\n   reviews\n }\n}];"
+      },
+      "id": "49b1205d-dd97-4bb7-b84d-eca6bd872c79",
+      "name": "Combine Reviews",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a product analyst.\n\nAnalyze the following Groww customer reviews.\n\nTasks:\n1. Cluster reviews into a maximum of 5 themes.\n2. Identify the top 3 themes.\n3. Extract 3 representative user quotes.\n4. Identify the most common fee or charge confusion.\n\nReviews:\n\n{{$json.reviews}}",
+        "options": {
+          "systemMessage": "You are a product analyst who analyzes customer reviews."
+        }
+      },
+      "id": "09df6d29-d3b1-40b0-a2ff-f714a1782e7d",
+      "name": "Review Analysis",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -496,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "id": "ef6d7e65-9eb5-4544-9471-3ec06b10e875",
+      "name": "Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -496,
+        -32
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SKBKjMgltF3wEghK",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a product manager.\n\nUsing the review analysis below, create a Weekly Product Pulse.\n\nRequirements:\n- Maximum 250 words\n- Include Top 3 Themes\n- Include 3 User Quotes\n- Include Key Observation\n- Include 3 Recommended Actions\n\nReview Analysis:\n\n{{$items(\"Review Analysis\")[0].json.output}}",
+        "options": {
+          "systemMessage": "You are a product manager who writes concise weekly product updates."
+        }
+      },
+      "id": "69b0aa08-af97-4b79-93e4-3a868585cd7b",
+      "name": "Weekly Product Pulse",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -128,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "id": "d6f2e99a-15ab-46cf-ac75-24f43a1f26fe",
+      "name": "Gemini Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        -32
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SKBKjMgltF3wEghK",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6d8c7337-98ef-4b6a-b97d-71fe68e757ee",
+              "name": "Source1",
+              "value": "https://groww.in/pricing",
+              "type": "string"
+            },
+            {
+              "id": "2bd8cd4c-0850-4f5e-8450-333ad875635b",
+              "name": "Source2",
+              "value": "https://groww.in/p/stock-brokerage-calculator",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bfe289dd-02f4-41d5-8c65-0caf7444936b",
+      "name": "Official Sources",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        208,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Using the Review Analysis below, identify any recurring fee confusion.\n\nIf no fee confusion exists, say:\n\n\"No fee-related confusion identified in the current review dataset.\"\n\nReview Analysis:\n\n{{$node[\"Review Analysis\"].json[\"output\"]}}\n \n\n",
+        "options": {
+          "systemMessage": "You explain fees and charges to customers clearly and accurately."
+        }
+      },
+      "id": "583d36b7-2db4-4404-8b62-d0ce30a2f455",
+      "name": "Fee Explainer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "id": "a97bcc51-b1b0-4009-a525-7f68c92d622b",
+      "name": "Gemini Chat Model2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        -32
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SKBKjMgltF3wEghK",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9b8274a-f1d9-4841-8204-3cb066179286",
+              "name": "review_analysis",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "e4e8a350-1d6a-4976-8aac-70f72b243d62",
+              "name": "weekly_pulse",
+              "value": "Generated",
+              "type": "string"
+            },
+            {
+              "id": "fc1c0303-9bb6-4580-97c0-568a5a40af78",
+              "name": "fee_explainer",
+              "value": "Generated",
+              "type": "string"
+            },
+            {
+              "id": "9aa63a91-d267-4205-a398-189cc94a883e",
+              "name": "status",
+              "value": "awaiting approval",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0a86a256-5033-42db-a4cd-ceab0b266e36",
+      "name": "Assemble and Check",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        736,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "77223aa5-75ab-4e74-b157-415fcee4b25c",
+              "name": "message",
+              "value": "Review generated outputs before approval",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a45a3205-6951-4287-ac83-cb62d834d0f0",
+      "name": "Review Page",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        928,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "339b8174-9f66-4f8a-b01d-e79992239529",
+              "leftValue": "1 Approve",
+              "rightValue": "1 Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2787d41a-0713-4acc-a42b-13f077723f35",
+      "name": "MCP Approval Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a business communications specialist.\nCreate a professional stakeholder email using ONLY the information below.\nWeekly Product Pulse:\n{{$node[\"Weekly Product Pulse\"].json[\"output\"]}}\nFee Explainer:\n{{$node[\"Fee Explainer\"].json[\"output\"]}}\nRequirements:\n- Create a clean business email.\n- Do not show markdown (#, ##, **).\n- Do not show raw AI output.\n- Summarize the Weekly Product Pulse.\n- Include:\n - Subject\n - Greeting\n - Executive Summary\n - Top Themes\n - Key Observation\n - Recommended Actions\n - Fee Explanation\n - Closing\nReturn plain email text only.",
+        "options": {
+          "systemMessage": "You are a business communications specialist."
+        }
+      },
+      "id": "65d6e575-3041-4f59-a341-94eb37bfbbb3",
+      "name": "Email Formatter",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1392,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "id": "ce588be6-68f0-4793-beda-8ce872b8e969",
+      "name": "Gemini Chat Model4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        16
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SKBKjMgltF3wEghK",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "svicky14791@gmail.com",
+        "subject": "Weekly Product Pulse + Customer Clarification - Brokerage Charges",
+        "emailType": "text",
+        "message": "={{$node[\"Email Formatter\"].json[\"output\"]}}",
+        "options": {}
+      },
+      "id": "06b7a27e-1487-4920-a10a-d2c6d81a2f80",
+      "name": "Send a message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1696,
+        -272
+      ],
+      "webhookId": "6ee2ef1d-00f1-4b33-8c38-796734ebd4dc",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VBGNGdxHXRxlgO1v",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an MCP Agent.\n\nAvailable tools:\n\n1. append_to_doc\n2. create_email_draft\n\nWhen approval is received:\n\n- Save the Weekly Product Pulse\n- Save the Fee Explainer\n- Create stakeholder communication\n\nSelect and execute the appropriate tools.\n\nWeekly Product Pulse:\n{{ $('Weekly Product Pulse').item.json.output }}\n\nFee Explainer:\n{{ $('Fee Explainer').item.json.output }}",
+        "options": {
+          "systemMessage": "You are an MCP agent that saves approved outputs using the available tools."
+        }
+      },
+      "id": "182fb4c3-36f9-4117-8bae-df4d6725c512",
+      "name": "MCP agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        928,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "id": "c9e7545d-6dc7-4ddb-8845-985607ed249e",
+      "name": "Gemini Chat Model3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        240
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SKBKjMgltF3wEghK",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Combine Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Reviews": {
+      "main": [
+        [
+          {
+            "node": "Review Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Analysis": {
+      "main": [
+        [
+          {
+            "node": "Weekly Product Pulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Review Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Product Pulse": {
+      "main": [
+        [
+          {
+            "node": "Official Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Weekly Product Pulse",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Official Sources": {
+      "main": [
+        [
+          {
+            "node": "Fee Explainer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fee Explainer": {
+      "main": [
+        [
+          {
+            "node": "Assemble and Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Fee Explainer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble and Check": {
+      "main": [
+        [
+          {
+            "node": "Review Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Page": {
+      "main": [
+        [
+          {
+            "node": "MCP Approval Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Approval Gate": {
+      "main": [
+        [
+          {
+            "node": "Email Formatter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MCP agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Formatter": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Email Formatter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "MCP agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a60d5ca2-a06e-4c76-817a-03d1e59de7b9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e6105b883e161f8a7ac3c17d87070826dd98d75d1153c0c26968b98256c7f1fa"
+  },
+  "nodeGroups": [],
+  "id": "5Z9GihicJIYqgsUR",
+  "tags": []
+}
